@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Quiz – Attention & Expérience Client</title>
+  <style>
+    :root{
+      --bg: #05050a;
+      --card: rgba(10,10,18,.62);
+      --cardBorder: rgba(255,255,255,.14);
+      --text: rgba(255,255,255,.94);
+      --muted: rgba(255,255,255,.78);
+      --accent: #b44cff;
+      --accent2: #7a2cff;
+      --danger: #ff3b3b;
+      --ok: #22d38a;
+      --shadow: 0 18px 60px rgba(0,0,0,.5);
+    }
+
+    *{ box-sizing:border-box; }
+    html, body { height:100%; }
+    body{
+      margin:0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow:hidden; /* canvas full-screen */
+    }
+
+    /* Canvas background */
+    #matrix{
+      position:fixed;
+      inset:0;
+      width:100%;
+      height:100%;
+      display:block;
+      z-index:0;
+    }
+
+    /* Dark overlay for readability */
+    .overlay{
+      position:fixed;
+      inset:0;
+      background: radial-gradient(ellipse at center, rgba(0,0,0,.35), rgba(0,0,0,.72));
+      z-index:1;
+      pointer-events:none;
+    }
+
+    /* Centered content */
+    .wrap{
+      position:relative;
+      z-index:2;
+      height:100%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:16px;
+    }
+
+    .card{
+      width:min(520px, 92vw);
+      background: var(--card);
+      border: 1px solid var(--cardBorder);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      padding: 18px 16px;
+    }
+
+    .tag{
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+      font-size:12px;
+      letter-spacing:.08em;
+      text-transform:uppercase;
+      color: rgba(255,255,255,.78);
+      border: 1px solid rgba(180,76,255,.35);
+      background: rgba(180,76,255,.10);
+      padding: 8px 10px;
+      border-radius: 999px;
+    }
+    .dot{
+      width:8px;height:8px;border-radius:999px;
+      background: var(--accent);
+      box-shadow: 0 0 16px rgba(180,76,255,.9);
+    }
+
+    h1{
+      margin:12px 0 0 0;
+      font-size: 18px;
+      line-height: 1.35;
+      font-weight: 700;
+    }
+
+    .subtitle{
+      margin:10px 0 0 0;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.45;
+    }
+
+    .options{
+      margin-top: 14px;
+      display:grid;
+      gap:10px;
+    }
+
+    .option{
+      display:flex;
+      align-items:flex-start;
+      gap:10px;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.06);
+      transition: transform .08s ease, border-color .12s ease, background .12s ease;
+      cursor:pointer;
+      user-select:none;
+    }
+    .option:hover{
+      transform: translateY(-1px);
+      border-color: rgba(180,76,255,.45);
+      background: rgba(180,76,255,.08);
+    }
+    .option input{
+      margin-top: 3px;
+      accent-color: var(--accent);
+      cursor:pointer;
+    }
+    .optText{
+      color: rgba(255,255,255,.88);
+      font-size: 14px;
+      line-height: 1.35;
+    }
+    .optText strong{
+      color: rgba(255,255,255,.96);
+    }
+
+    .actions{
+      display:flex;
+      gap:10px;
+      margin-top: 14px;
+      flex-wrap:wrap;
+    }
+
+    button{
+      border:0;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-weight: 750;
+      cursor:pointer;
+      transition: transform .08s ease, opacity .12s ease, filter .12s ease;
+      font-size: 14px;
+    }
+    button:active{ transform: scale(.99); }
+
+    .btnPrimary{
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #0b0612;
+      box-shadow: 0 10px 30px rgba(180,76,255,.25);
+    }
+    .btnGhost{
+      background: rgba(255,255,255,.08);
+      color: var(--text);
+      border: 1px solid rgba(255,255,255,.16);
+    }
+    .btnGhost:hover{ filter: brightness(1.08); }
+
+    .feedback{
+      margin-top: 14px;
+      padding: 12px 12px;
+      border-radius: 14px;
+      border: 1px dashed rgba(255,255,255,.20);
+      background: rgba(0,0,0,.22);
+      display:none;
+    }
+
+    .fadeIn{
+      animation: fadeIn .18s ease-out;
+    }
+    @keyframes fadeIn{
+      from{ opacity:0; transform: translateY(2px); }
+      to{ opacity:1; transform: translateY(0); }
+    }
+
+    .bad{ color: var(--danger); font-weight: 800; }
+    .good{ color: var(--ok); font-weight: 800; }
+
+    .why{
+      margin-top: 8px;
+      color: rgba(255,255,255,.90);
+      line-height: 1.45;
+      display:none;
+    }
+
+    .hint{
+      margin-top: 10px;
+      font-size: 12px;
+      color: rgba(255,255,255,.65);
+    }
+
+    /* Better tap targets on mobile */
+    @media (max-width: 420px){
+      .card{ padding: 16px 14px; border-radius: 16px; }
+      h1{ font-size: 17px; }
+      .option{ padding: 12px 10px; }
+      button{ width: 100%; }
+      .actions{ gap:8px; }
+    }
+  </style>
+</head>
+
+<body>
+  <canvas id="matrix" aria-hidden="true"></canvas>
+  <div class="overlay" aria-hidden="true"></div>
+
+  <main class="wrap">
+    <section class="card" role="group" aria-label="Quiz hôtellerie">
+      <div class="tag"><span class="dot"></span>Quiz · Neurosciences</div>
+      <h1>Lorsqu’un hôte arrive dans un hôtel, quel élément a le plus d’impact sur l’activation de son attention dans les toutes premières secondes ?</h1>
+      <p class="subtitle">Choisissez une réponse puis validez.</p>
+
+      <form id="quizForm" autocomplete="off">
+        <div class="options" aria-label="Choix de réponses">
+          <label class="option">
+            <input type="radio" name="q1" value="A" />
+            <div class="optText"><strong>A.</strong> La rapidité du check-in</div>
+          </label>
+
+          <label class="option">
+            <input type="radio" name="q1" value="B" />
+            <div class="optText"><strong>B.</strong> La conformité aux standards de la marque</div>
+          </label>
+
+          <label class="option">
+            <input type="radio" name="q1" value="C" />
+            <div class="optText"><strong>C.</strong> La rupture perceptive (lieu, ambiance, premier contact humain)</div>
+          </label>
+
+          <label class="option">
+            <input type="radio" name="q1" value="D" />
+            <div class="optText"><strong>D.</strong> Les informations pratiques transmises à l’arrivée</div>
+          </label>
+        </div>
+
+        <div class="actions">
+          <button class="btnPrimary" type="submit">Valider</button>
+          <button class="btnGhost" type="button" id="resetBtn">Réinitialiser</button>
+        </div>
+
+        <div class="feedback" id="feedback" aria-live="polite">
+          <div id="resultLine"></div>
+          <div class="why" id="whyText">
+            Le cerveau capte d’abord ce qui est distinctif et inattendu.<br />
+            Sans attention, aucune information n’est réellement traitée.
+          </div>
+          <div class="hint">Bonne réponse : C</div>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    // ---------- QUIZ LOGIC ----------
+    const form = document.getElementById("quizForm");
+    const feedback = document.getElementById("feedback");
+    const resultLine = document.getElementById("resultLine");
+    const whyText = document.getElementById("whyText");
+    const resetBtn = document.getElementById("resetBtn");
+
+    const correct = "C";
+
+    function showFeedback(html, showWhy) {
+      feedback.style.display = "block";
+      feedback.classList.remove("fadeIn");
+      void feedback.offsetWidth; // restart animation
+      feedback.classList.add("fadeIn");
+
+      resultLine.innerHTML = html;
+      whyText.style.display = showWhy ? "block" : "none";
+    }
+
+    form.addEventListener("submit", (e) => {
+      e.preventDefault();
+
+      const selected = form.querySelector('input[name="q1"]:checked');
+
+      if (!selected) {
+        showFeedback('<span class="bad">Veuillez sélectionner une réponse.</span>', false);
+        return;
+      }
+
+      if (selected.value === correct) {
+        showFeedback('<span class="good">✅ Bonne réponse.</span>', true);
+      } else {
+        showFeedback('<span class="bad">Mauvaise réponse.</span>', false);
+      }
+    });
+
+    resetBtn.addEventListener("click", () => {
+      form.reset();
+      feedback.style.display = "none";
+      resultLine.innerHTML = "";
+      whyText.style.display = "none";
+    });
+
+    // ---------- MATRIX BACKGROUND (PURPLE) ----------
+    (function matrixRain(){
+      const canvas = document.getElementById("matrix");
+      const ctx = canvas.getContext("2d", { alpha: true });
+
+      // Characters set: mix for matrix vibe
+      const chars = "アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ#$%&*+-";
+      const charArr = chars.split("");
+
+      let dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1)); // cap DPR for perf
+      let w = 0, h = 0;
+      let columns = 0;
+      let drops = [];
+      let fontSize = 16; // will be adapted
+      let lastTime = 0;
+
+      // Density + speed tuned for mobile
+      const fpsCap = 30; // limit redraw rate for perf
+      const frameInterval = 1000 / fpsCap;
+
+      function resize(){
+        dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+        w = Math.floor(window.innerWidth);
+        h = Math.floor(window.innerHeight);
+
+        canvas.width = Math.floor(w * dpr);
+        canvas.height = Math.floor(h * dpr);
+        canvas.style.width = w + "px";
+        canvas.style.height = h + "px";
+
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        // Adapt font size to screen width for readability + performance
+        fontSize = w < 420 ? 14 : 16;
+
+        columns = Math.floor(w / fontSize);
+        drops = new Array(columns).fill(0).map(() => Math.floor(Math.random() * h / fontSize));
+      }
+
+      function draw(now){
+        if (!lastTime) lastTime = now;
+        const delta = now - lastTime;
+
+        if (delta < frameInterval) {
+          requestAnimationFrame(draw);
+          return;
+        }
+        lastTime = now;
+
+        // Slight trail: paint with low alpha
+        ctx.fillStyle = "rgba(5, 5, 10, 0.12)";
+        ctx.fillRect(0, 0, w, h);
+
+        ctx.font = fontSize + "px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', monospace";
+
+        // Purple gradient-ish effect (no external assets)
+        // Alternate brightness per frame for subtle variation
+        for (let i = 0; i < drops.length; i++) {
+          const text = charArr[(Math.random() * charArr.length) | 0];
+          const x = i * fontSize;
+          const y = drops[i] * fontSize;
+
+          // Head brighter, tail dimmer
+          const head = (Math.random() > 0.92);
+          ctx.fillStyle = head ? "rgba(210, 170, 255, 0.95)" : "rgba(180, 76, 255, 0.78)";
+          ctx.shadowColor = "rgba(180, 76, 255, 0.55)";
+          ctx.shadowBlur = head ? 12 : 6;
+
+          ctx.fillText(text, x, y);
+
+          // Move drop down; random reset for variety
+          if (y > h && Math.random() > 0.975) {
+            drops[i] = 0;
+          } else {
+            drops[i] += 1;
+          }
+        }
+
+        // Reset shadow for safety
+        ctx.shadowBlur = 0;
+
+        requestAnimationFrame(draw);
+      }
+
+      const ro = new ResizeObserver(() => resize());
+      ro.observe(document.documentElement);
+
+      window.addEventListener("orientationchange", resize, { passive: true });
+
+      resize();
+      requestAnimationFrame(draw);
+    })();
+  </script>
+</body>
+</html>
